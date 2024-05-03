@@ -4,31 +4,45 @@ pwd = os.path.dirname(os.path.abspath(__file__))
 os.chdir(pwd)
 sys.path.append(os.path.join(pwd, './src'))
 
-import config  # noqa: E402
-import data_loading  # noqa: E402
-from clients import Clients  # noqa: E402
 from utils import Arguments  # noqa: E402
+from config import ConfigVariables  # noqa: E402
+from clients import Clients  # noqa: E402
+from rag import RAG  # noqa: E402
+import data_loading  # noqa: E402
 
 
-parse_args = Arguments() | "--process_data" | "--RAG" | "--KG"
-selected_arg = parse_args()
+class Main:
+    def __init__(self):
+        self.cfg_vars = ConfigVariables(root='./')
+        self.clients = Clients(**self.cfg_vars.env_vars(
+                        "ELASTIC_PASSWORD", "ELASTIC_URL",
+                        "CA_CERT", "OPENAI_API_KEY"))
 
-cfg_vars = config.ConfigVariables(root='./')
-clients = Clients(**cfg_vars.env_vars("ELASTIC_PASSWORD", "ELASTIC_URL",
-                                      "CA_CERT", "OPENAI_API_KEY"))
+    def run(self, flag: str, query: str = None):
+        if flag == "--process_data":
+            data_loading.run(self.clients, **self.cfg_vars(
+                            'processed_files', 'chunk_size',
+                            'overlap', 'embedding_model', 'dims'))
+            # mv_cmd = \
+            #     f"""
+            #     mv {self.cfg_vars('unprocessed_files')}/*.pdf
+            #     {self.cfg_vars('processed_files')}
+            #     """
+            # os.system(mv_cmd)
 
-if selected_arg == "--process_data":
+        if flag == "--RAG":
+            rag = RAG(self.clients, 'goodfellas-chunk',
+                      **self.cfg_vars('embedding_model', 'dims', 'llm', 'k'))
+            return rag(query=query)
 
-    data_loading.run(clients, cfg_vars('processed-files', 'chunk-size',
-                                       'overlap', 'openai-model', 'dims'))
-    os.system(
-     f"mv {cfg_vars('unprocessed-files')}/*.pdf {cfg_vars('processed-files')}"
-    )
+        if flag == "--KG":
+            print("KG processing not implemented.")
+            pass
 
-if selected_arg == "--RAG":
-    print("RAG processing not implemented.")
-    pass
 
-if selected_arg == "--KG":
-    print("KG processing not implemented.")
-    pass
+if __name__ == "__main__":
+    # note: arreglar el uso como CLI
+    parse_args = Arguments() | "--process_data" | "--RAG" | "--KG"
+    selected_arg = parse_args()
+    main = Main()
+    main.run(selected_arg)
