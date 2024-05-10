@@ -31,13 +31,12 @@ class Main:
             # os.system(mv_cmd)
 
         if flag == "--RAG":
-            rag = RAG(self.clients, 'goodfellas-chunk',
-                      **self.cfg_vars('embedding_model', 'dims', 'llm', 'k'))
-            return rag(query=query)
+            self.rag = RAG(self.clients, 'goodfellas-chunk',
+                           **self.cfg_vars('embedding_model', 'dims', 'llm', 'k'))
+            return self.rag(query=query)
 
         if flag == "--KG":
-            print("KG processing not implemented.")
-            pass
+            return self.rag.get_result_ids()
 
 
 if __name__ == "__main__":

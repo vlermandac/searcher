@@ -38,7 +38,7 @@ class TestDataLoading(unittest.TestCase):
         response = self.clients.elastic_search().search(
                 index=f"{self.doc_name}-chunks",
                 body={"query": {"match_all": {}}})
-        print("Search respond: ", response)
+        print("Search respond: ", response['hits']['hits'])
         self.assertIsNotNone(response, "Indexed chunks not found")
 
         response = self.clients.elastic_search().indices.delete(index=f"{self.doc_name}-chunks")

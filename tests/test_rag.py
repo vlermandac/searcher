@@ -21,6 +21,8 @@ class TestRAG(unittest.TestCase):
         print(self.rag.prompt)
         print("\nResponse:")
         print(response)
+        print("\nResult IDs:")
+        print(self.rag.get_result_ids())
 
 
 if __name__ == '__main__':

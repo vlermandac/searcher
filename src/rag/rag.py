@@ -8,6 +8,7 @@ class RAG:
         self.k = k
         self.llm = llm
         self.prompt = ""
+        self.result_ids = []
 
     def __call__(self, query, system_message="you are a helpful assistant."):
         self.prompt = self.contextualized_query(query)
@@ -19,6 +20,12 @@ class RAG:
             ],
         )
         return answer.choices[0].message
+
+    def get_result_ids(self):
+        if len(self.result_ids) == 0:
+            print("No results to display.")
+            return
+        return self.result_ids
 
     def query_embedding(self, query):
         embedd = self.openai.embeddings.create(
@@ -35,7 +42,9 @@ class RAG:
         else:
             for hit in response["hits"]["hits"]:
                 text = hit["_source"]["text"]
+                id = hit["_id"]
                 output.append(text)
+                self.result_ids.append(id)
         return output
 
     def retrieval(self, vector_query):

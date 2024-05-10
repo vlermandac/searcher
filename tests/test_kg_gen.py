@@ -1,47 +1,25 @@
-from llama_index.core import SimpleDirectoryReader, KnowledgeGraphIndex
-from llama_index.core.graph_stores import SimpleGraphStore
-from llama_index.llms.openai import OpenAI
-from llama_index.core import Settings
-from llama_index.core import StorageContext
-from IPython.display import Markdown, display
-from pyvis.network import Network
-import logging
-import os
-import sys
-from dotenv import load_dotenv
+from header import *
+from kg import KnowledgeGraphConstructor
 
 
-class KnowledgeGraphProcessor:
-    def __init__(self):
-        logging.basicConfig(stream=sys.stdout, level=logging.INFO)
-        load_dotenv()
-        self.OPENAI_API_KEY = str(os.getenv("OPENAI_API_KEY"))
-        self.llm = OpenAI(temperature=0, model="gpt-3.5-turbo")
-        Settings.llm = self.llm
-        Settings.chunk_size = 512
-        self.documents = SimpleDirectoryReader(
-            "../data/processed_files/").load_data()
-        self.graph_store = SimpleGraphStore()
-        self.storage_context = StorageContext.from_defaults(
-            graph_store=self.graph_store)
-        self.index = KnowledgeGraphIndex.from_documents(
-            self.documents,
-            max_triplets_per_chunk=2,
-            storage_context=self.storage_context,
-        )
+class TestKG(unittest.TestCase):
+    def setUp(self, root=ROOT):
+        self.vars = ConfigVariables(root)
+        env_var = self.vars.env_vars('ELASTIC_URL', 'ELASTIC_PASSWORD',
+                                'CA_CERT', 'OPENAI_API_KEY')
+        cert_mod = root + env_var['CA_CERT']
+        env_var['CA_CERT'] = cert_mod
+        self.clients = Clients(**env_var)
 
-    def query_summary(self):
-        query_engine = self.index.as_query_engine(
-            include_text=True,
-            response_mode="tree_summarize",
-            embedding_mode="hybrid",
-            similarity_top_k=5,
-        )
-        response = query_engine.query("Make a summary of the story")
-        display(Markdown(f"{response}"))
+        self.kg = KnowledgeGraphConstructor()
 
-    def display_graph(self):
-        g = self.index.get_networkx_graph()
-        net = Network(notebook=True, cdn_resources="in_line", directed=True)
-        net.from_nx(g)
-        net.show("example.html")
+    def test_chunks_to_triplet(self):
+        chunks = self.kg.data_from_es(self.clients.elastic_search(), 'goodfellas-chunk', 30)
+        triplets = self.kg.chunk_to_triplets(self.clients.open_ai(), 'gpt-3.5-turbo', chunks)
+        self.kg.process_triplets(triplets)
+        with open('graph-data.json', 'w') as f:
+            f.write(self.kg.serialize())
+
+
+if __name__ == '__main__':
+    unittest.main(testRunner=RichTestRunner())
